@@ -19,7 +19,8 @@ import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler
+from socketserver import ThreadingTCPServer
 
 from .classifier import Suggester, FOLDER_GUIDANCE, FILENAME_GUIDANCE
 
@@ -533,11 +534,12 @@ def run_service(config: dict, state_dir: Path, port: int = 0):
             super().setup()
             self.connection.settimeout(5)
 
-    server = ThreadingHTTPServer(('127.0.0.1', port), Handler)
+    # HTTPServer performs reverse DNS during binding; loopback needs no lookup.
+    server = ThreadingTCPServer(('127.0.0.1', port), Handler)
     server.daemon_threads = True
     session = state_dir / 'session.json'
     temp = state_dir / 'session.json.tmp'
-    temp.write_text(json.dumps({'port': server.server_port, 'token': token, 'pid': os.getpid()}))
+    temp.write_text(json.dumps({'port': server.server_address[1], 'token': token, 'pid': os.getpid()}))
     os.chmod(temp, 0o600)
     temp.replace(session)
     watcher = threading.Thread(target=service.watch, daemon=True, name='downloads-watcher')
