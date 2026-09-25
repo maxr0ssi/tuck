@@ -1,0 +1,25 @@
+name: Checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python scripts/check_public.py
+      - run: python -m unittest discover -s tests -v
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: bash scripts/build_app.sh
+      - run: python -m unittest discover -s tests -v
+        env:
+          DOWNLOAD_SUGGEST_TEST_APP: .build/Tuck.app/Contents/MacOS/DownloadSuggest
