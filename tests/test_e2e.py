@@ -53,7 +53,10 @@ class DownloadFlow(unittest.TestCase):
             env.setdefault("HF_HOME", str(Path.home() / ".cache" / "huggingface"))
         self.log = open(self.root / "server.log", "a+")
         self.process = subprocess.Popen([
-            sys.executable, "-m", "download_suggest", "serve", "--config", str(self.config),
+            sys.executable, "-c",
+            "import faulthandler, signal; faulthandler.register(signal.SIGUSR1); "
+            "from download_suggest.cli import main; raise SystemExit(main())",
+            "serve", "--config", str(self.config),
             "--state-dir", str(self.state_dir), "--port", "0"
         ], cwd=REPO, env=env, stdout=self.log, stderr=subprocess.STDOUT)
         deadline = time.monotonic() + 10
@@ -70,7 +73,10 @@ class DownloadFlow(unittest.TestCase):
             except (OSError, ValueError, KeyError):
                 pass
             time.sleep(.03)
-        self.fail("Backend never became ready")
+        os.kill(self.process.pid, signal.SIGUSR1)
+        time.sleep(.1)
+        self.log.seek(0)
+        self.fail("Backend never became ready. Synthetic fixture diagnostics\n" + self.log.read())
 
     def stop(self):
         if self.process is not None:
